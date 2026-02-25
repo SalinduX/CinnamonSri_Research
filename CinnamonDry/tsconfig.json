@@ -1,0 +1,17 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "jsx": "react-jsx",
+    "skipLibCheck": true
+  },
+  "include": [
+    "src",
+    "declarations.d.ts"   ,
+    "nativewind-env.d.ts",
+    "src/types/**/*.d.ts",     // ← add if missing
+    "**/*.d.ts"       // ← add this line (or wherever you put the file)
+  ],
+  
+  
+}
