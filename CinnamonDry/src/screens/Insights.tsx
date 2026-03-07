@@ -1,130 +1,165 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl } from 'react-native';
-import { apiService, DeviceStatus } from '../services/api';
-import { formatDistanceToNow } from 'date-fns';
-import { AlertTriangle, CheckCircle2, Clock, Thermometer, Droplets } from 'lucide-react-native';
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from "react-native";
+import { getSensorData, getSessions } from "../services/api";
+import { SensorData, DryingSession } from "../types/react-navigation";
+
+const C = {
+  bg:      "#020817",
+  surface: "#0f172a",
+  border:  "#1e293b",
+  muted:   "#64748b",
+  text:    "#94a3b8",
+  white:   "#ffffff",
+  amber:   "#f59e0b",
+  green:   "#22c55e",
+  red:     "#ef4444",
+  blue:    "#38bdf8",
+};
+
+function InsightCard({ title, value, desc, color }: {
+  title: string; value: string; desc: string; color: string;
+}) {
+  return (
+    <View style={[styles.insightCard, { borderLeftColor: color }]}>
+      <Text style={styles.insightTitle}>{title}</Text>
+      <Text style={[styles.insightValue, { color }]}>{value}</Text>
+      <Text style={styles.insightDesc}>{desc}</Text>
+    </View>
+  );
+}
+
+function MiniBar({ label, value, max, color }: {
+  label: string; value: number; max: number; color: string;
+}) {
+  const pct = Math.min((value / max) * 100, 100);
+  return (
+    <View style={styles.miniBarRow}>
+      <Text style={styles.miniBarLabel}>{label}</Text>
+      <View style={styles.miniBarTrack}>
+        <View style={[styles.miniBarFill, { width: `${pct}%` as any, backgroundColor: color }]} />
+      </View>
+      <Text style={[styles.miniBarVal, { color }]}>{value}</Text>
+    </View>
+  );
+}
 
 export default function Insights() {
-  const [status, setStatus] = useState<DeviceStatus | null>(null);
+  const [data, setData]           = useState<SensorData | null>(null);
+  const [sessions, setSessions]   = useState<DryingSession[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchData = async () => {
-    try {
-      setRefreshing(true);
-      const { data } = await apiService.getStatus();
-      setStatus(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setRefreshing(false);
-    }
+  const fetchAll = async () => {
+    const [sensorResult, sessionResult] = await Promise.all([
+      getSensorData(),
+      getSessions(),
+    ]);
+    setData(sensorResult.data);
+    setSessions(sessionResult);
+    setRefreshing(false);
   };
 
-  useEffect(() => {
-    fetchData();
-    const i = setInterval(fetchData, 20000);
-    return () => clearInterval(i);
-  }, []);
+  useEffect(() => { fetchAll(); }, []);
 
-  if (!status) {
-    return (
-      <View className="flex-1 bg-gray-950 items-center justify-center">
-        <Text className="text-gray-400">Loading insights...</Text>
-      </View>
-    );
-  }
+  const total      = sessions.length;
+  const dried      = sessions.filter(s => s.result === "dry").length;
+  const successRate = total > 0 ? Math.round((dried / total) * 100) : 0;
+  const avgTemp    = total > 0
+    ? (sessions.reduce((s, x) => s + x.avgTemp, 0) / total).toFixed(1)
+    : "--";
+  const avgHum     = total > 0
+    ? (sessions.reduce((s, x) => s + x.avgHumidity, 0) / total).toFixed(1)
+    : "--";
+  const avgDuration = total > 0
+    ? Math.round(sessions.reduce((s, x) => s + x.duration, 0) / total)
+    : 0;
 
-  const isOptimal = status.mlDecision === 'yes';
+  const dryingRate = data
+    ? ((data.temp / 45) * (50 / Math.max(data.humidity, 1))).toFixed(2)
+    : "--";
 
-  // Very simple remaining time heuristic (you should improve this with real model/data)
-  const getSuggestionAndTime = () => {
-    if (isOptimal) {
-      return {
-        title: 'Optimal drying condition reached',
-        message: 'Bark is ready. Recommend removing from dryer now.',
-        color: 'emerald',
-        icon: CheckCircle2,
-        remaining: 'Done',
-      };
-    }
-
-    if (status.humidity > 65) {
-      return {
-        title: 'High moisture detected',
-        message: 'Strongly recommend running the fan longer.',
-        color: 'amber',
-        icon: AlertTriangle,
-        remaining: '8–14 hours',
-      };
-    }
-
-    if (status.temperature < 45) {
-      return {
-        title: 'Temperature too low',
-        message: 'Heater should be activated to speed up drying safely.',
-        color: 'rose',
-        icon: Thermometer,
-        remaining: '12–20 hours',
-      };
-    }
-
-    return {
-      title: 'Drying in progress',
-      message: 'Conditions are acceptable — continue current settings.',
-      color: 'blue',
-      icon: Clock,
-      remaining: '4–9 hours',
-    };
-  };
-
-  const insight = getSuggestionAndTime();
+  const estimatedRemaining = data
+    ? Math.max(0, Math.round(360 / parseFloat(dryingRate || "1") - (data.elapsed || 0)))
+    : 0;
 
   return (
     <ScrollView
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchData} />}
-      className="flex-1 bg-gray-950 p-5"
+      style={styles.scroll}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchAll(); }} tintColor={C.amber} />}
     >
-      <View className={`rounded-3xl p-6 mb-6 bg-${insight.color}-950 border border-${insight.color}-800/40`}>
-        <View className="flex-row items-center mb-4">
-          <insight.icon size={32} color={insight.color === 'emerald' ? '#10B981' : '#F59E0B'} />
-          <Text className={`text-2xl font-bold ml-3 text-${insight.color}-300`}>
-            {insight.title}
-          </Text>
+      {/* Current Session */}
+      {data && (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>CURRENT SESSION</Text>
+          <View style={styles.row}>
+            <InsightCard title="Drying Rate"  value={dryingRate + "x"} desc="Relative speed vs baseline" color={C.amber} />
+            <InsightCard title="Est. Remaining" value={estimatedRemaining + "m"} desc="Based on current conditions" color={C.blue} />
+          </View>
         </View>
+      )}
 
-        <Text className="text-gray-200 text-lg leading-6">{insight.message}</Text>
-
-        <View className="mt-6 bg-black/30 rounded-2xl p-5">
-          <Text className="text-gray-300 text-base">Estimated remaining time:</Text>
-          <Text className={`text-4xl font-bold mt-2 text-${insight.color}-400`}>
-            {insight.remaining}
-          </Text>
+      {/* Historical Insights */}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>HISTORICAL INSIGHTS</Text>
+        <View style={styles.row}>
+          <InsightCard title="Success Rate" value={successRate + "%"} desc="Sessions dried successfully" color={C.green} />
+          <InsightCard title="Avg Duration" value={avgDuration + "m"}  desc="Average session duration"   color={C.amber} />
+        </View>
+        <View style={[styles.row, { marginTop: 0 }]}>
+          <InsightCard title="Avg Temp"     value={avgTemp + "°C"} desc="Across all sessions" color={C.red}  />
+          <InsightCard title="Avg Humidity" value={avgHum + "%"}   desc="Across all sessions" color={C.blue} />
         </View>
       </View>
 
-      {/* Current readings summary */}
-      <View className="bg-gray-900 rounded-3xl p-6 mb-6">
-        <Text className="text-xl font-semibold text-white mb-4">Current Conditions</Text>
-
-        <View className="flex-row justify-between mb-4">
-          <View className="items-center">
-            <Thermometer size={28} color="#60A5FA" />
-            <Text className="text-white text-2xl font-bold mt-2">{status.temperature.toFixed(1)}°C</Text>
-            <Text className="text-gray-400">Temperature</Text>
-          </View>
-          <View className="items-center">
-            <Droplets size={28} color="#38BDF8" />
-            <Text className="text-white text-2xl font-bold mt-2">{status.humidity.toFixed(1)}%</Text>
-            <Text className="text-gray-400">Humidity</Text>
-          </View>
+      {/* Conditions Chart */}
+      {sessions.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>SESSION TEMPERATURES</Text>
+          {sessions.map(s => (
+            <MiniBar
+              key={s.id}
+              label={s.startTime.split(" ")[0]}
+              value={Math.round(s.avgTemp)}
+              max={80}
+              color={s.result === "dry" ? C.green : C.amber}
+            />
+          ))}
         </View>
+      )}
 
-        <Text className="text-gray-500 text-sm mt-2">
-          Last update {formatDistanceToNow(new Date(status.timestamp), { addSuffix: true })}
-        </Text>
+      {/* Tips */}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>DRYING TIPS</Text>
+        {[
+          { icon: "🌡️", tip: "Keep temperature between 40–55°C for best results" },
+          { icon: "💧", tip: "Humidity below 50% speeds up drying significantly" },
+          { icon: "💨", tip: "Good airflow reduces drying time by up to 30%" },
+          { icon: "📷", tip: "ML model checks bark condition every 15 minutes" },
+        ].map((item, i) => (
+          <View key={i} style={styles.tipRow}>
+            <Text style={styles.tipIcon}>{item.icon}</Text>
+            <Text style={styles.tipText}>{item.tip}</Text>
+          </View>
+        ))}
       </View>
-
-      {/* Add more insight cards if you collect history / trends */}
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  scroll:        { flex: 1, backgroundColor: C.bg, padding: 16 },
+  card:          { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 16, padding: 16, marginBottom: 16 },
+  sectionTitle:  { color: C.muted, fontSize: 10, letterSpacing: 2, marginBottom: 14, fontFamily: "monospace" },
+  row:           { flexDirection: "row", gap: 10, marginBottom: 10 },
+  insightCard:   { flex: 1, backgroundColor: C.bg, borderWidth: 1, borderColor: C.border, borderLeftWidth: 3, borderRadius: 10, padding: 12 },
+  insightTitle:  { color: C.muted, fontSize: 9, letterSpacing: 2, fontFamily: "monospace" },
+  insightValue:  { fontSize: 22, fontWeight: "700", marginVertical: 4, fontFamily: "monospace" },
+  insightDesc:   { color: C.muted, fontSize: 9, fontFamily: "monospace" },
+  miniBarRow:    { flexDirection: "row", alignItems: "center", marginBottom: 10, gap: 8 },
+  miniBarLabel:  { color: C.muted, fontSize: 10, width: 80, fontFamily: "monospace" },
+  miniBarTrack:  { flex: 1, backgroundColor: C.border, borderRadius: 99, height: 6, overflow: "hidden" },
+  miniBarFill:   { height: "100%", borderRadius: 99 },
+  miniBarVal:    { fontSize: 11, fontWeight: "700", width: 36, textAlign: "right", fontFamily: "monospace" },
+  tipRow:        { flexDirection: "row", alignItems: "flex-start", marginBottom: 10, gap: 10 },
+  tipIcon:       { fontSize: 16 },
+  tipText:       { color: C.text, fontSize: 12, flex: 1, lineHeight: 18, fontFamily: "monospace" },
+});

@@ -1,12 +1,48 @@
-declare module '@react-navigation/native' {
-  export * from '@react-navigation/native';
+// ---- Navigation Types ----
+export type RootTabParamList = {
+  Dashboard: undefined;
+  Controls:  undefined;
+  Gallery:   undefined;
+  History:   undefined;
+  Insights:  undefined;
+};
+
+// ---- Sensor Data Types ----
+export interface SensorData {
+  temp:           number;
+  humidity:       number;
+  heater:         "ON" | "OFF";
+  fan:            "ON" | "OFF";
+  elapsed:        number;   // minutes
+  remaining:      number;   // minutes
+  status:         "In progress" | "COMPLETE";
+  ml_result:      "dry" | "not_dry";
+  ml_confidence:  number;   // 0-100
 }
 
-declare module 'lucide-react-native';
-declare module '@react-navigation/bottom-tabs' {
-  export * from '@react-navigation/bottom-tabs';
+// ---- Log Entry Type ----
+export interface LogEntry {
+  timestamp: string;
+  message:   string;
+  level:     "INFO" | "WARNING" | "ERROR" | "SUCCESS";
 }
 
-/// <reference types="nativewind/types" />
+// ---- Gallery Image Type ----
+export interface CapturedImage {
+  id:        string;
+  uri:       string;
+  timestamp: string;
+  ml_result: "dry" | "not_dry";
+  confidence: number;
+}
 
-declare module 'react-native-chart-kit';
+// ---- Insights Type ----
+export interface DryingSession {
+  id:          string;
+  startTime:   string;
+  endTime:     string;
+  avgTemp:     number;
+  avgHumidity: number;
+  result:      "dry" | "not_dry" | "incomplete";
+  duration:    number; // minutes
+}

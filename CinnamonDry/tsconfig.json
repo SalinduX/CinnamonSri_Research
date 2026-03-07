@@ -2,17 +2,11 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "jsx": "react-jsx",
-    "skipLibCheck": true,
-    "types": ["nativewind/types"]
-  },
-  "include": [
-    "src",
-    "declarations.d.ts"   ,
-    "nativewind-env.d.ts",
-    "src/types/**/*.d.ts",     // ← add if missing
-    "**/*.d.ts"       // ← add this line (or wherever you put the file)
-  ],
-  
-  
+    "baseUrl": ".",
+    "paths": {
+      "@screens/*":  ["src/screens/*"],
+      "@services/*": ["src/services/*"],
+      "@types/*":    ["src/types/*"]
+    }
+  }
 }

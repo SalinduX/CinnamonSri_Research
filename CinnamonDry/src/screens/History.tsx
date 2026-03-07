@@ -1,120 +1,149 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Dimensions, ScrollView, RefreshControl } from 'react-native';
-import { LineChart } from 'react-native-chart-kit';
-import { apiService } from '../services/api';
-import { format, subHours } from 'date-fns';
+import React, { useEffect, useState } from "react";
+import {
+  View, Text, StyleSheet, FlatList, RefreshControl
+} from "react-native";
+import { getSessions } from "../services/api";
+import { DryingSession } from "../types/react-navigation";
 
-const screenWidth = Dimensions.get('window').width;
-
-type HistoryPoint = {
-  timestamp: string;
-  temperature: number;
-  humidity: number;
+const C = {
+  bg:      "#020817",
+  surface: "#0f172a",
+  border:  "#1e293b",
+  muted:   "#64748b",
+  text:    "#94a3b8",
+  white:   "#ffffff",
+  amber:   "#f59e0b",
+  green:   "#22c55e",
+  red:     "#ef4444",
+  blue:    "#38bdf8",
 };
 
-export default function History() {
-  const [data, setData] = useState<HistoryPoint[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
+function SessionCard({ session }: { session: DryingSession }) {
+  const resultColor =
+    session.result === "dry"        ? C.green :
+    session.result === "incomplete" ? C.amber : C.red;
 
-  const fetchHistory = async () => {
-    try {
-      setRefreshing(true);
-      // Assuming backend supports ?hours=24
-      const { data: points } = await apiService.getHistory(24);
-      setData(points);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setRefreshing(false);
-    }
-  };
+  const resultLabel =
+    session.result === "dry"        ? "DRIED" :
+    session.result === "incomplete" ? "INCOMPLETE" : "FAILED";
 
-  useEffect(() => {
-    fetchHistory();
-  }, []);
-
-  if (data.length === 0) {
-    return (
-      <View className="flex-1 bg-gray-950 items-center justify-center">
-        <Text className="text-gray-400">No history data yet</Text>
-      </View>
-    );
-  }
-
-  const labels = data.map((p) =>
-    format(new Date(p.timestamp), 'HH:mm')
-  );
-
-  const tempData = {
-    labels,
-    datasets: [
-      {
-        data: data.map((p) => p.temperature),
-        color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-        strokeWidth: 2.5,
-      },
-    ],
-  };
-
-  const humData = {
-    labels,
-    datasets: [
-      {
-        data: data.map((p) => p.humidity),
-        color: (opacity = 1) => `rgba(56, 189, 248, ${opacity})`,
-        strokeWidth: 2.5,
-      },
-    ],
-  };
-
-  const chartConfig = {
-    backgroundGradientFrom: '#1F2937',
-    backgroundGradientTo: '#1F2937',
-    decimalPlaces: 1,
-    color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-    labelColor: () => '#9CA3AF',
-    style: { borderRadius: 16 },
-    propsForDots: { r: '4', strokeWidth: '2', stroke: '#111827' },
-  };
+  const hours = Math.floor(session.duration / 60);
+  const mins  = session.duration % 60;
 
   return (
-    <ScrollView
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchHistory} />}
-      className="flex-1 bg-gray-950"
-    >
-      <View className="p-5">
-        <Text className="text-white text-2xl font-bold mb-6">Last 24 Hours</Text>
-
-        <View className="bg-gray-900 rounded-3xl p-5 mb-6">
-          <Text className="text-blue-400 text-xl font-semibold mb-4">Temperature (°C)</Text>
-          <LineChart
-            data={tempData}
-            width={screenWidth - 40}
-            height={220}
-            chartConfig={chartConfig}
-            bezier
-            style={{ borderRadius: 16 }}
-          />
-        </View>
-
-        <View className="bg-gray-900 rounded-3xl p-5">
-          <Text className="text-sky-400 text-xl font-semibold mb-4">Relative Humidity (%)</Text>
-          <LineChart
-            data={humData}
-            width={screenWidth - 40}
-            height={220}
-            chartConfig={chartConfig}
-            bezier
-            style={{ borderRadius: 16 }}
-          />
-        </View>
-
-        <View className="mt-8 mb-6 items-center">
-          <Text className="text-gray-500 text-sm">
-            Data points: {data.length} • Updated {format(new Date(), 'HH:mm')}
-          </Text>
+    <View style={styles.card}>
+      {/* Header row */}
+      <View style={styles.cardHeader}>
+        <Text style={styles.sessionDate}>{session.startTime.split(" ")[0]}</Text>
+        <View style={[styles.resultBadge, { borderColor: resultColor, backgroundColor: resultColor + "22" }]}>
+          <Text style={[styles.resultText, { color: resultColor }]}>{resultLabel}</Text>
         </View>
       </View>
-    </ScrollView>
+
+      {/* Stats */}
+      <View style={styles.statsRow}>
+        <View style={styles.statBox}>
+          <Text style={[styles.statVal, { color: C.red }]}>{session.avgTemp}°C</Text>
+          <Text style={styles.statLbl}>Avg Temp</Text>
+        </View>
+        <View style={styles.statBox}>
+          <Text style={[styles.statVal, { color: C.blue }]}>{session.avgHumidity}%</Text>
+          <Text style={styles.statLbl}>Avg Humidity</Text>
+        </View>
+        <View style={styles.statBox}>
+          <Text style={[styles.statVal, { color: C.amber }]}>{hours}h {mins}m</Text>
+          <Text style={styles.statLbl}>Duration</Text>
+        </View>
+      </View>
+
+      {/* Time range */}
+      <Text style={styles.timeRange}>
+        {session.startTime} → {session.endTime}
+      </Text>
+    </View>
   );
 }
+
+function SummaryBar({ sessions }: { sessions: DryingSession[] }) {
+  const total      = sessions.length;
+  const dried      = sessions.filter(s => s.result === "dry").length;
+  const avgDuration = total > 0
+    ? Math.round(sessions.reduce((sum, s) => sum + s.duration, 0) / total)
+    : 0;
+  const avgTemp = total > 0
+    ? (sessions.reduce((sum, s) => sum + s.avgTemp, 0) / total).toFixed(1)
+    : "0";
+
+  return (
+    <View style={styles.summaryBar}>
+      <View style={styles.summaryBox}>
+        <Text style={[styles.summaryVal, { color: C.green }]}>{dried}</Text>
+        <Text style={styles.summaryLbl}>Dried</Text>
+      </View>
+      <View style={styles.summaryBox}>
+        <Text style={[styles.summaryVal, { color: C.amber }]}>{total}</Text>
+        <Text style={styles.summaryLbl}>Total</Text>
+      </View>
+      <View style={styles.summaryBox}>
+        <Text style={[styles.summaryVal, { color: C.red }]}>{avgTemp}°C</Text>
+        <Text style={styles.summaryLbl}>Avg Temp</Text>
+      </View>
+      <View style={styles.summaryBox}>
+        <Text style={[styles.summaryVal, { color: C.blue }]}>{avgDuration}m</Text>
+        <Text style={styles.summaryLbl}>Avg Time</Text>
+      </View>
+    </View>
+  );
+}
+
+export default function History() {
+  const [sessions, setSessions]   = useState<DryingSession[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchSessions = async () => {
+    const result = await getSessions();
+    setSessions(result);
+    setRefreshing(false);
+  };
+
+  useEffect(() => { fetchSessions(); }, []);
+
+  return (
+    <FlatList
+      style={styles.list}
+      data={sessions}
+      keyExtractor={item => item.id}
+      contentContainerStyle={{ padding: 16 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchSessions(); }} tintColor={C.amber} />}
+      ListHeaderComponent={<SummaryBar sessions={sessions} />}
+      renderItem={({ item }) => <SessionCard session={item} />}
+      ListEmptyComponent={
+        <View style={styles.empty}>
+          <Text style={styles.emptyIcon}>📋</Text>
+          <Text style={styles.emptyText}>No sessions yet</Text>
+        </View>
+      }
+    />
+  );
+}
+
+const styles = StyleSheet.create({
+  list:         { flex: 1, backgroundColor: C.bg },
+  summaryBar:   { flexDirection: "row", backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 16, padding: 16, marginBottom: 16, justifyContent: "space-around" },
+  summaryBox:   { alignItems: "center" },
+  summaryVal:   { fontSize: 22, fontWeight: "700", fontFamily: "monospace" },
+  summaryLbl:   { color: C.muted, fontSize: 10, letterSpacing: 1, marginTop: 2, fontFamily: "monospace" },
+  card:         { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 16, marginBottom: 12 },
+  cardHeader:   { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
+  sessionDate:  { color: C.white, fontSize: 15, fontWeight: "700", fontFamily: "monospace" },
+  resultBadge:  { borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
+  resultText:   { fontSize: 10, fontWeight: "700", letterSpacing: 2, fontFamily: "monospace" },
+  statsRow:     { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
+  statBox:      { alignItems: "center", flex: 1 },
+  statVal:      { fontSize: 16, fontWeight: "700", fontFamily: "monospace" },
+  statLbl:      { color: C.muted, fontSize: 9, letterSpacing: 1, marginTop: 2, fontFamily: "monospace" },
+  timeRange:    { color: C.muted, fontSize: 10, fontFamily: "monospace" },
+  empty:        { alignItems: "center", marginTop: 80 },
+  emptyIcon:    { fontSize: 48, marginBottom: 12 },
+  emptyText:    { color: C.text, fontSize: 16, fontFamily: "monospace" },
+});
