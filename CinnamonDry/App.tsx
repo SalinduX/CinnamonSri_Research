@@ -8,17 +8,13 @@ import Controls  from "./src/screens/Controls";
 import Gallery   from "./src/screens/Gallery";
 import History   from "./src/screens/History";
 import Insights  from "./src/screens/Insights";
-
 import { RootTabParamList } from "./src/types/react-navigation";
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
 const C = {
-  bg:      "#020817",
-  surface: "#0f172a",
-  border:  "#1e293b",
-  muted:   "#64748b",
-  amber:   "#f59e0b",
+  bg: "#020817", surface: "#0f172a", border: "#1e293b",
+  muted: "#64748b", amber: "#f59e0b",
 };
 
 const ICONS: Record<string, string> = {
@@ -42,29 +38,16 @@ export default function App() {
           tabBarActiveTintColor:   C.amber,
           tabBarInactiveTintColor: C.muted,
           tabBarStyle: {
-            backgroundColor:  C.surface,
-            borderTopColor:   C.border,
-            borderTopWidth:   1,
-            height:           60,
-            paddingBottom:    8,
-          },
-          tabBarLabelStyle: {
-            fontSize:    9,
-            letterSpacing: 1,
-            fontFamily:  "monospace",
-          },
-          headerStyle: {
             backgroundColor: C.surface,
-            borderBottomColor: C.border,
-            borderBottomWidth: 1,
+            borderTopColor:  C.border,
+            borderTopWidth:  1,
+            height:          60,
+            paddingBottom:   8,
           },
-          headerTitleStyle: {
-            color:       C.amber,
-            fontFamily:  "monospace",
-            fontSize:    14,
-            letterSpacing: 2,
-          },
-          headerTitle: "CINNAMON DRY",
+          tabBarLabelStyle:  { fontSize: 9, letterSpacing: 1, fontFamily: "monospace" },
+          headerStyle:       { backgroundColor: C.surface, borderBottomColor: C.border, borderBottomWidth: 1 },
+          headerTitleStyle:  { color: C.amber, fontFamily: "monospace", fontSize: 14, letterSpacing: 2 },
+          headerTitle:       "CINNAMON DRY",
         })}
       >
         <Tab.Screen name="Dashboard" component={Dashboard} />
