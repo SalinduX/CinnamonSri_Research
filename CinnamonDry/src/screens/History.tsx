@@ -1,149 +1,127 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
-  View, Text, StyleSheet, FlatList, RefreshControl
+  View, Text, StyleSheet, FlatList,
+  RefreshControl, ActivityIndicator
 } from "react-native";
-import { getSessions } from "../services/api";
-import { DryingSession } from "../types/react-navigation";
+import { getLogs } from "../services/api";
+import { LogEntry } from "../types/react-navigation";
 
 const C = {
-  bg:      "#020817",
-  surface: "#0f172a",
-  border:  "#1e293b",
-  muted:   "#64748b",
-  text:    "#94a3b8",
-  white:   "#ffffff",
-  amber:   "#f59e0b",
-  green:   "#22c55e",
-  red:     "#ef4444",
-  blue:    "#38bdf8",
+  bg:      "#020817", surface: "#0f172a", border: "#1e293b",
+  muted:   "#64748b", text:    "#94a3b8", white:  "#ffffff",
+  amber:   "#f59e0b", green:   "#22c55e", red:    "#ef4444", blue: "#38bdf8",
 };
 
-function SessionCard({ session }: { session: DryingSession }) {
-  const resultColor =
-    session.result === "dry"        ? C.green :
-    session.result === "incomplete" ? C.amber : C.red;
+const LEVEL_COLORS: Record<LogEntry["level"], string> = {
+  INFO:    C.text,
+  WARNING: C.amber,
+  ERROR:   C.red,
+  SUCCESS: C.green,
+};
 
-  const resultLabel =
-    session.result === "dry"        ? "DRIED" :
-    session.result === "incomplete" ? "INCOMPLETE" : "FAILED";
-
-  const hours = Math.floor(session.duration / 60);
-  const mins  = session.duration % 60;
-
+function LogRow({ entry }: { entry: LogEntry }) {
+  const color = LEVEL_COLORS[entry.level];
   return (
-    <View style={styles.card}>
-      {/* Header row */}
-      <View style={styles.cardHeader}>
-        <Text style={styles.sessionDate}>{session.startTime.split(" ")[0]}</Text>
-        <View style={[styles.resultBadge, { borderColor: resultColor, backgroundColor: resultColor + "22" }]}>
-          <Text style={[styles.resultText, { color: resultColor }]}>{resultLabel}</Text>
-        </View>
-      </View>
-
-      {/* Stats */}
-      <View style={styles.statsRow}>
-        <View style={styles.statBox}>
-          <Text style={[styles.statVal, { color: C.red }]}>{session.avgTemp}°C</Text>
-          <Text style={styles.statLbl}>Avg Temp</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={[styles.statVal, { color: C.blue }]}>{session.avgHumidity}%</Text>
-          <Text style={styles.statLbl}>Avg Humidity</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={[styles.statVal, { color: C.amber }]}>{hours}h {mins}m</Text>
-          <Text style={styles.statLbl}>Duration</Text>
-        </View>
-      </View>
-
-      {/* Time range */}
-      <Text style={styles.timeRange}>
-        {session.startTime} → {session.endTime}
-      </Text>
-    </View>
-  );
-}
-
-function SummaryBar({ sessions }: { sessions: DryingSession[] }) {
-  const total      = sessions.length;
-  const dried      = sessions.filter(s => s.result === "dry").length;
-  const avgDuration = total > 0
-    ? Math.round(sessions.reduce((sum, s) => sum + s.duration, 0) / total)
-    : 0;
-  const avgTemp = total > 0
-    ? (sessions.reduce((sum, s) => sum + s.avgTemp, 0) / total).toFixed(1)
-    : "0";
-
-  return (
-    <View style={styles.summaryBar}>
-      <View style={styles.summaryBox}>
-        <Text style={[styles.summaryVal, { color: C.green }]}>{dried}</Text>
-        <Text style={styles.summaryLbl}>Dried</Text>
-      </View>
-      <View style={styles.summaryBox}>
-        <Text style={[styles.summaryVal, { color: C.amber }]}>{total}</Text>
-        <Text style={styles.summaryLbl}>Total</Text>
-      </View>
-      <View style={styles.summaryBox}>
-        <Text style={[styles.summaryVal, { color: C.red }]}>{avgTemp}°C</Text>
-        <Text style={styles.summaryLbl}>Avg Temp</Text>
-      </View>
-      <View style={styles.summaryBox}>
-        <Text style={[styles.summaryVal, { color: C.blue }]}>{avgDuration}m</Text>
-        <Text style={styles.summaryLbl}>Avg Time</Text>
-      </View>
+    <View style={[styles.logRow, { borderLeftColor: color }]}>
+      <Text style={[styles.logText, { color }]}>{entry.raw}</Text>
     </View>
   );
 }
 
 export default function History() {
-  const [sessions, setSessions]   = useState<DryingSession[]>([]);
+  const [logs, setLogs]             = useState<LogEntry[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading]       = useState(true);
+  const [connected, setConnected]   = useState(false);
 
-  const fetchSessions = async () => {
-    const result = await getSessions();
-    setSessions(result);
+  const fetchLogs = useCallback(async () => {
+    const result = await getLogs();
+    setLogs(result.logs.reverse()); // newest first
+    setConnected(result.connected);
+    setLoading(false);
     setRefreshing(false);
-  };
+  }, []);
 
-  useEffect(() => { fetchSessions(); }, []);
+  useEffect(() => {
+    fetchLogs();
+    const interval = setInterval(fetchLogs, 5000); // refresh every 5 sec
+    return () => clearInterval(interval);
+  }, [fetchLogs]);
+
+  const errorCount   = logs.filter(l => l.level === "ERROR").length;
+  const successCount = logs.filter(l => l.level === "SUCCESS").length;
+  const warnCount    = logs.filter(l => l.level === "WARNING").length;
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={C.amber} size="large" />
+        <Text style={styles.loadingText}>Loading logs from Pi...</Text>
+      </View>
+    );
+  }
 
   return (
-    <FlatList
-      style={styles.list}
-      data={sessions}
-      keyExtractor={item => item.id}
-      contentContainerStyle={{ padding: 16 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchSessions(); }} tintColor={C.amber} />}
-      ListHeaderComponent={<SummaryBar sessions={sessions} />}
-      renderItem={({ item }) => <SessionCard session={item} />}
-      ListEmptyComponent={
-        <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>📋</Text>
-          <Text style={styles.emptyText}>No sessions yet</Text>
+    <View style={styles.container}>
+      {/* Summary bar */}
+      <View style={styles.summaryBar}>
+        <View style={styles.summaryBox}>
+          <Text style={[styles.summaryVal, { color: C.text }]}>{logs.length}</Text>
+          <Text style={styles.summaryLbl}>Total</Text>
         </View>
-      }
-    />
+        <View style={styles.summaryBox}>
+          <Text style={[styles.summaryVal, { color: C.green }]}>{successCount}</Text>
+          <Text style={styles.summaryLbl}>Success</Text>
+        </View>
+        <View style={styles.summaryBox}>
+          <Text style={[styles.summaryVal, { color: C.amber }]}>{warnCount}</Text>
+          <Text style={styles.summaryLbl}>Warnings</Text>
+        </View>
+        <View style={styles.summaryBox}>
+          <Text style={[styles.summaryVal, { color: C.red }]}>{errorCount}</Text>
+          <Text style={styles.summaryLbl}>Errors</Text>
+        </View>
+        <View style={styles.summaryBox}>
+          <View style={[styles.dot, {
+            backgroundColor: connected ? C.green : C.red,
+            shadowColor: connected ? C.green : C.red
+          }]} />
+          <Text style={styles.summaryLbl}>{connected ? "LIVE" : "OFF"}</Text>
+        </View>
+      </View>
+
+      <FlatList
+        data={logs}
+        keyExtractor={(_, i) => i.toString()}
+        contentContainerStyle={{ padding: 16 }}
+        refreshControl={<RefreshControl refreshing={refreshing}
+          onRefresh={() => { setRefreshing(true); fetchLogs(); }} tintColor={C.amber} />}
+        renderItem={({ item }) => <LogRow entry={item} />}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Text style={styles.emptyIcon}>📋</Text>
+            <Text style={styles.emptyText}>
+              {connected ? "No logs yet" : "Pi not reachable"}
+            </Text>
+          </View>
+        }
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  list:         { flex: 1, backgroundColor: C.bg },
-  summaryBar:   { flexDirection: "row", backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 16, padding: 16, marginBottom: 16, justifyContent: "space-around" },
-  summaryBox:   { alignItems: "center" },
-  summaryVal:   { fontSize: 22, fontWeight: "700", fontFamily: "monospace" },
-  summaryLbl:   { color: C.muted, fontSize: 10, letterSpacing: 1, marginTop: 2, fontFamily: "monospace" },
-  card:         { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 16, marginBottom: 12 },
-  cardHeader:   { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
-  sessionDate:  { color: C.white, fontSize: 15, fontWeight: "700", fontFamily: "monospace" },
-  resultBadge:  { borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
-  resultText:   { fontSize: 10, fontWeight: "700", letterSpacing: 2, fontFamily: "monospace" },
-  statsRow:     { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
-  statBox:      { alignItems: "center", flex: 1 },
-  statVal:      { fontSize: 16, fontWeight: "700", fontFamily: "monospace" },
-  statLbl:      { color: C.muted, fontSize: 9, letterSpacing: 1, marginTop: 2, fontFamily: "monospace" },
-  timeRange:    { color: C.muted, fontSize: 10, fontFamily: "monospace" },
-  empty:        { alignItems: "center", marginTop: 80 },
-  emptyIcon:    { fontSize: 48, marginBottom: 12 },
-  emptyText:    { color: C.text, fontSize: 16, fontFamily: "monospace" },
+  container:   { flex: 1, backgroundColor: C.bg },
+  center:      { flex: 1, backgroundColor: C.bg, justifyContent: "center", alignItems: "center" },
+  loadingText: { color: C.muted, marginTop: 12, fontFamily: "monospace" },
+  summaryBar:  { flexDirection: "row", backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border, padding: 14, justifyContent: "space-around", alignItems: "center" },
+  summaryBox:  { alignItems: "center" },
+  summaryVal:  { fontSize: 18, fontWeight: "700", fontFamily: "monospace" },
+  summaryLbl:  { color: C.muted, fontSize: 9, letterSpacing: 1, marginTop: 2, fontFamily: "monospace" },
+  dot:         { width: 8, height: 8, borderRadius: 4, shadowOpacity: 0.8, shadowRadius: 4, elevation: 4 },
+  logRow:      { borderLeftWidth: 3, paddingLeft: 10, paddingVertical: 6, marginBottom: 4, backgroundColor: C.surface, borderRadius: 4 },
+  logText:     { fontSize: 11, fontFamily: "monospace", lineHeight: 16 },
+  empty:       { alignItems: "center", marginTop: 80 },
+  emptyIcon:   { fontSize: 48, marginBottom: 12 },
+  emptyText:   { color: C.text, fontSize: 16, fontFamily: "monospace" },
 });

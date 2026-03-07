@@ -1,100 +1,82 @@
-import React, { useEffect, useState } from "react";
-import {
-  View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, RefreshControl
-} from "react-native";
+import React, { useEffect, useState, useCallback } from "react";
+import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from "react-native";
 import { getSensorData } from "../services/api";
 import { SensorData } from "../types/react-navigation";
 
 const C = {
-  bg:      "#020817",
-  surface: "#0f172a",
-  border:  "#1e293b",
-  muted:   "#64748b",
-  text:    "#94a3b8",
-  white:   "#ffffff",
-  amber:   "#f59e0b",
-  green:   "#22c55e",
-  red:     "#ef4444",
-  blue:    "#38bdf8",
+  bg:      "#020817", surface: "#0f172a", border: "#1e293b",
+  muted:   "#64748b", text:    "#94a3b8", white:  "#ffffff",
+  amber:   "#f59e0b", green:   "#22c55e", red:    "#ef4444", blue: "#38bdf8",
 };
 
 const THRESHOLDS = [
   { label: "Heater ON below",  value: "40°C",    desc: "Heater activates when temp drops below this" },
-  { label: "Heater OFF above", value: "55°C",    desc: "Heater shuts off when temp exceeds this"     },
+  { label: "Heater OFF above", value: "55°C",    desc: "Safety cutoff - heater shuts off"            },
   { label: "Fan",              value: "Always",  desc: "Fan runs continuously at all times"           },
   { label: "Base drying time", value: "360 min", desc: "Expected duration under ideal conditions"     },
-  { label: "ML threshold",     value: "70%",     desc: "Minimum confidence to declare bark dry"       },
-  { label: "Photo interval",   value: "15 min",  desc: "Camera captures an image every 15 minutes"   },
+  { label: "Photo interval",   value: "15 min",  desc: "Camera captures every 15 minutes"            },
+  { label: "ML threshold",     value: "70%",     desc: "Min confidence to declare bark dry"           },
 ];
 
-function ThresholdRow({ label, value, desc }: {
-  label: string; value: string; desc: string;
-}) {
-  return (
-    <View style={styles.threshRow}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.threshLabel}>{label}</Text>
-        <Text style={styles.threshDesc}>{desc}</Text>
-      </View>
-      <Text style={styles.threshValue}>{value}</Text>
-    </View>
-  );
-}
-
 export default function Controls() {
-  const [data, setData]           = useState<SensorData | null>(null);
+  const [data, setData]             = useState<SensorData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading]       = useState(true);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     const result = await getSensorData();
-    setData(result.data);
+    if (result.data) setData(result.data);
+    setLoading(false);
     setRefreshing(false);
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchData]);
 
   return (
     <ScrollView
       style={styles.scroll}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={C.amber} />}
+      refreshControl={<RefreshControl refreshing={refreshing}
+        onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={C.amber} />}
     >
-      {/* Live Status */}
-      {data && (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>LIVE STATUS</Text>
-          <View style={styles.liveRow}>
-            <View style={styles.liveBox}>
-              <Text style={[styles.liveVal, { color: C.red }]}>{data.temp}°C</Text>
-              <Text style={styles.liveLbl}>Temperature</Text>
-            </View>
-            <View style={styles.liveBox}>
-              <Text style={[styles.liveVal, { color: C.blue }]}>{data.humidity}%</Text>
-              <Text style={styles.liveLbl}>Humidity</Text>
-            </View>
-            <View style={styles.liveBox}>
-              <Text style={[styles.liveVal, {
-                color: data.heater === "ON" ? C.amber : C.muted
-              }]}>{data.heater}</Text>
-              <Text style={styles.liveLbl}>Heater</Text>
-            </View>
-            <View style={styles.liveBox}>
-              <Text style={[styles.liveVal, { color: C.green }]}>{data.fan}</Text>
-              <Text style={styles.liveLbl}>Fan</Text>
-            </View>
+      {/* Live status from real Pi */}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>LIVE READINGS FROM PI</Text>
+        {loading || !data ? (
+          <ActivityIndicator color={C.amber} />
+        ) : (
+          <View style={styles.liveGrid}>
+            {[
+              { label: "Temp",     value: data.temp + "°C",          color: C.red   },
+              { label: "Humidity", value: data.humidity + "%",        color: C.blue  },
+              { label: "Heater",   value: data.heater,                color: data.heater === "ON" ? C.amber : C.muted },
+              { label: "Fan",      value: data.fan,                   color: C.green },
+              { label: "Photos",   value: data.photo_count + " taken",color: C.text  },
+              { label: "Status",   value: data.status,                color: data.status === "COMPLETE" ? C.green : C.amber },
+            ].map((item, i) => (
+              <View key={i} style={styles.liveBox}>
+                <Text style={[styles.liveVal, { color: item.color }]}>{item.value}</Text>
+                <Text style={styles.liveLbl}>{item.label}</Text>
+              </View>
+            ))}
           </View>
-        </View>
-      )}
+        )}
+      </View>
 
-      {/* Control Thresholds */}
+      {/* Thresholds */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>CONTROL THRESHOLDS</Text>
         {THRESHOLDS.map((t, i) => (
-          <ThresholdRow key={i} label={t.label} value={t.value} desc={t.desc} />
+          <View key={i} style={styles.threshRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.threshLabel}>{t.label}</Text>
+              <Text style={styles.threshDesc}>{t.desc}</Text>
+            </View>
+            <Text style={styles.threshValue}>{t.value}</Text>
+          </View>
         ))}
       </View>
 
@@ -102,27 +84,21 @@ export default function Controls() {
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>CONTROL LOGIC</Text>
         <View style={styles.logicBox}>
-          <Text style={styles.logicTitle}>🔥 Heater</Text>
-          <Text style={styles.logicLine}>ON  → temp {"<"} 40°C</Text>
-          <Text style={styles.logicLine}>OFF → temp {">"} 55°C</Text>
+          <Text style={styles.logicTitle}>🔥  Heater Logic</Text>
+          <Text style={styles.logicLine}>ON  →  temp {"<"} 40°C</Text>
+          <Text style={styles.logicLine}>OFF →  temp {">"} 55°C</Text>
         </View>
         <View style={[styles.logicBox, { borderColor: C.blue }]}>
-          <Text style={styles.logicTitle}>💨 Fan</Text>
+          <Text style={styles.logicTitle}>💨  Fan Logic</Text>
           <Text style={styles.logicLine}>Always ON while system is running</Text>
           <Text style={styles.logicLine}>OFF only on system shutdown</Text>
         </View>
-      </View>
-
-      {/* Pi Connection */}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>PI CONNECTION</Text>
-        <View style={styles.apiBox}>
-          <Text style={styles.apiLabel}>API Endpoint</Text>
-          <Text style={styles.apiUrl}>http://YOUR_PI_IP:5000</Text>
+        <View style={[styles.logicBox, { borderColor: C.green }]}>
+          <Text style={styles.logicTitle}>📷  Camera Logic</Text>
+          <Text style={styles.logicLine}>Photo taken every 15 minutes</Text>
+          <Text style={styles.logicLine}>ML model classifies: dry / not_dry</Text>
+          <Text style={styles.logicLine}>Confident dry at {">"} 70% confidence</Text>
         </View>
-        <Text style={styles.apiNote}>
-          Update API_BASE in src/services/api.ts to your Raspberry Pi IP address.
-        </Text>
       </View>
     </ScrollView>
   );
@@ -132,9 +108,9 @@ const styles = StyleSheet.create({
   scroll:       { flex: 1, backgroundColor: C.bg, padding: 16 },
   card:         { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 16, padding: 16, marginBottom: 16 },
   sectionTitle: { color: C.muted, fontSize: 10, letterSpacing: 2, marginBottom: 14, fontFamily: "monospace" },
-  liveRow:      { flexDirection: "row", justifyContent: "space-between" },
-  liveBox:      { alignItems: "center", flex: 1 },
-  liveVal:      { fontSize: 18, fontWeight: "700", fontFamily: "monospace" },
+  liveGrid:     { flexDirection: "row", flexWrap: "wrap" },
+  liveBox:      { width: "33%", alignItems: "center", paddingVertical: 10 },
+  liveVal:      { fontSize: 16, fontWeight: "700", fontFamily: "monospace" },
   liveLbl:      { color: C.muted, fontSize: 9, letterSpacing: 1, marginTop: 4, fontFamily: "monospace" },
   threshRow:    { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
   threshLabel:  { color: C.text, fontSize: 13, fontFamily: "monospace" },
@@ -143,8 +119,4 @@ const styles = StyleSheet.create({
   logicBox:     { borderWidth: 1, borderColor: C.amber, borderRadius: 10, padding: 14, marginBottom: 10 },
   logicTitle:   { color: C.white, fontSize: 13, fontWeight: "700", marginBottom: 8, fontFamily: "monospace" },
   logicLine:    { color: C.text, fontSize: 12, lineHeight: 22, fontFamily: "monospace" },
-  apiBox:       { backgroundColor: C.bg, borderWidth: 1, borderColor: C.border, borderRadius: 8, padding: 12, marginBottom: 10 },
-  apiLabel:     { color: C.muted, fontSize: 10, letterSpacing: 1, marginBottom: 4, fontFamily: "monospace" },
-  apiUrl:       { color: C.blue, fontSize: 13, fontFamily: "monospace" },
-  apiNote:      { color: C.muted, fontSize: 11, lineHeight: 18, fontFamily: "monospace" },
 });
