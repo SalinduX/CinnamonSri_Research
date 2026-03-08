@@ -3,13 +3,13 @@ import {
   View, Text, StyleSheet, ScrollView,
   ActivityIndicator, RefreshControl, Animated
 } from "react-native";
-import { getSensorData } from "../services/api";
-import { SensorData } from "../types/react-navigation";
-import { C, FONTS, SHADOWS } from "../components/theme";
+import { getSensorData } from "../../services/api";
+import { SensorData } from "../../types/react-navigation";
+import { C, FONTS, SHADOWS } from "../../components/theme";
 import {
   SpiceCard, SectionLabel, StatusPill,
   MetricTile, BarkProgress, RetryButton
-} from "../components/ui";
+} from "../../components/ui";
 
 // ─── Circular Ring Gauge ───────────────────────────────────────────
 function RingGauge({

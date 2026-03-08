@@ -1,117 +1,116 @@
 import React from "react";
+import { StatusBar } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { View, Text, StyleSheet } from "react-native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
-import Dashboard from "./src/screens/Dashboard";
-import Controls  from "./src/screens/Controls";
-import Gallery   from "./src/screens/Gallery";
-import History   from "./src/screens/History";
-import Insights  from "./src/screens/Insights";
-import { RootTabParamList } from "./src/types/react-navigation";
-import { C, FONTS } from "./src/components/theme";
+import { RootStackParamList } from "./src/types/index";
+import { C } from "./src/components/theme";
 
-const Tab = createBottomTabNavigator<RootTabParamList>();
+import HomeScreen      from "./src/screens/HomeScreen";
+import CinnDryNavigator from "./src/screens/CinnDry/index";
+import CinnOracle      from "./src/screens/CinnOracle/index";
+import CinnHarvest     from "./src/screens/CinnHarvest/index";
+import CinnGuard       from "./src/screens/CinnGuard/index";
 
-type TabName = keyof RootTabParamList;
-
-const TAB_ICONS: Record<TabName, { icon: string; label: string }> = {
-  Dashboard: { icon: "🏠", label: "Home"     },
-  Controls:  { icon: "🎛️", label: "Controls" },
-  Gallery:   { icon: "📷", label: "Gallery"  },
-  History:   { icon: "📋", label: "Logs"     },
-  Insights:  { icon: "📊", label: "Insights" },
-};
-
-function TabIcon({ name, focused }: { name: TabName; focused: boolean }) {
-  const tab = TAB_ICONS[name];
-  return (
-    <View style={[styles.tabIconWrap, focused && styles.tabIconActive]}>
-      <Text style={[styles.tabEmoji, { opacity: focused ? 1 : 0.5 }]}>{tab.icon}</Text>
-      {focused && <View style={styles.tabDot} />}
-    </View>
-  );
-}
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   return (
-    <NavigationContainer
-      theme={{
-        dark: true,
-        colors: {
-          primary:      C.spice,
-          background:   C.bg,
-          card:         C.surface,
-          text:         C.cream,
-          border:       C.border,
-          notification: C.spice,
-        },
-        fonts: {
-          regular: { fontFamily: FONTS.mono, fontWeight: "400" },
-          medium: { fontFamily: FONTS.mono, fontWeight: "500" },
-          bold: { fontFamily: FONTS.mono, fontWeight: "700" },
-          heavy: { fontFamily: FONTS.display, fontWeight: "900" },
-        },
-      }}
-    >
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name={route.name as TabName} focused={focused} />
-          ),
-          tabBarLabel: ({ focused, color }) => (
-            <Text style={[styles.tabLabel, { color: focused ? C.spiceLight : C.muted }]}>
-              {TAB_ICONS[route.name as TabName].label}
-            </Text>
-          ),
-          tabBarStyle: {
-            backgroundColor:  C.surface,
-            borderTopColor:   C.border,
-            borderTopWidth:   1,
-            height:           70,
-            paddingBottom:    10,
-            paddingTop:       6,
+    <>
+      <StatusBar barStyle="light-content" backgroundColor={C.bg} />
+      <NavigationContainer
+        theme={{
+          dark: true,
+          colors: {
+            primary:      C.spice,
+            background:   C.bg,
+            card:         C.surface,
+            text:         C.cream,
+            border:       C.border,
+            notification: C.spice,
           },
-          headerStyle: {
-            backgroundColor:   C.surface,
-            borderBottomColor: C.border,
-            borderBottomWidth: 1,
-            elevation:         0,
-            shadowOpacity:     0,
+          fonts: {
+            regular: {
+              fontFamily: "System",
+              fontWeight: "400",
+            },
+            medium: {
+              fontFamily: "System",
+              fontWeight: "500",
+            },
+            heavy: {
+              fontFamily: "System",
+              fontWeight: "700",
+            },
+            bold: {
+              fontFamily: "",
+              fontWeight: "bold"
+            }
           },
-          headerTitle: () => (
-            <View style={styles.headerTitle}>
-              <Text style={styles.headerEmoji}>🌿</Text>
-              <View>
-                <Text style={styles.headerMain}>CinnamonDry</Text>
-                <Text style={styles.headerSub}>Smart Bark Dryer</Text>
-              </View>
-            </View>
-          ),
-          headerRight: () => (
-            <Text style={styles.headerRight}>v1.0</Text>
-          ),
-        })}
+        }}
       >
-        <Tab.Screen name="Dashboard" component={Dashboard} />
-        <Tab.Screen name="Controls"  component={Controls}  />
-        <Tab.Screen name="Gallery"   component={Gallery}   />
-        <Tab.Screen name="History"   component={History}   />
-        <Tab.Screen name="Insights"  component={Insights}  />
-      </Tab.Navigator>
-    </NavigationContainer>
+        <Stack.Navigator
+          initialRouteName="Home"
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: C.surface,
+            },
+            headerTintColor:      C.spiceLight,
+            headerTitleStyle: {
+              color:      C.cream,
+              fontFamily: "Georgia",
+              fontWeight: "700",
+            },
+            headerBackTitleVisible: false,
+            contentStyle: { backgroundColor: C.bg },
+            animation: "slide_from_right",
+          }}
+        >
+          {/* Home — hide header, it has its own header area */}
+          <Stack.Screen
+            name="Home"
+            component={HomeScreen}
+            options={{ headerShown: false }}
+          />
+
+          {/* CinnDry — has its own tab navigator with header */}
+          <Stack.Screen
+            name="CinnDry"
+            component={CinnDryNavigator}
+            options={{ headerShown: false }}
+          />
+
+          {/* CinnOracle */}
+          <Stack.Screen
+            name="CinnOracle"
+            component={CinnOracle}
+            options={{
+              title: "CinnOracle",
+              headerBackTitle: "Home",
+            }}
+          />
+
+          {/* CinnHarvest */}
+          <Stack.Screen
+            name="CinnHarvest"
+            component={CinnHarvest}
+            options={{
+              title: "CinnHarvest",
+              headerBackTitle: "Home",
+            }}
+          />
+
+          {/* CinnGuard */}
+          <Stack.Screen
+            name="CinnGuard"
+            component={CinnGuard}
+            options={{
+              title: "CinnGuard",
+              headerBackTitle: "Home",
+            }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  tabIconWrap:   { alignItems: "center", justifyContent: "center", paddingTop: 4 },
-  tabIconActive: { opacity: 1 },
-  tabEmoji:      { fontSize: 20 },
-  tabDot:        { width: 4, height: 4, borderRadius: 2, backgroundColor: C.spice, marginTop: 3 },
-  tabLabel:      { fontSize: 9, fontFamily: FONTS.mono, letterSpacing: 0.5 },
-  headerTitle:   { flexDirection: "row", alignItems: "center", gap: 10 },
-  headerEmoji:   { fontSize: 26 },
-  headerMain:    { color: C.cream, fontSize: 17, fontFamily: FONTS.display, fontWeight: "700" },
-  headerSub:     { color: C.muted, fontSize: 10, fontFamily: FONTS.mono, letterSpacing: 1 },
-  headerRight:   { color: C.muted, fontSize: 10, fontFamily: FONTS.mono, marginRight: 16 },
-});

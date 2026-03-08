@@ -3,10 +3,10 @@ import {
   View, Text, StyleSheet, ScrollView,
   RefreshControl, ActivityIndicator
 } from "react-native";
-import { getSensorData } from "../services/api";
-import { SensorData } from "../types/react-navigation";
-import { C, FONTS, SHADOWS } from "../components/theme";
-import { SpiceCard, SectionLabel, MetricTile } from "../components/ui";
+import { getSensorData } from "../../services/api";
+import { SensorData } from "../../types/react-navigation";
+import { C, FONTS, SHADOWS } from "../../components/theme";
+import { SpiceCard, SectionLabel, MetricTile } from "../../components/ui";
 
 const THRESHOLDS = [
   { icon: "🔥", label: "Heater turns ON",  value: "Below 40°C",  desc: "Heater activates when temp drops" },

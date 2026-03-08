@@ -3,10 +3,10 @@ import {
   View, Text, StyleSheet, FlatList,
   RefreshControl, ActivityIndicator, Animated
 } from "react-native";
-import { getLogs } from "../services/api";
-import { LogEntry } from "../types/react-navigation";
-import { C, FONTS } from "../components/theme";
-import { SpiceCard } from "../components/ui";
+import { getLogs } from "../../services/api";
+import { LogEntry } from "../../types/react-navigation";
+import { C, FONTS } from "../../components/theme";
+import { SpiceCard } from "../../components/ui";
 
 const LEVEL_STYLE: Record<LogEntry["level"], { color: string; bg: string; border: string; icon: string }> = {
   INFO:    { color: C.text,       bg: C.surface,  border: C.border,      icon: "·"  },

@@ -3,10 +3,10 @@ import {
   View, Text, StyleSheet, ScrollView,
   RefreshControl, ActivityIndicator
 } from "react-native";
-import { getSensorData } from "../services/api";
-import { SensorData } from "../types/react-navigation";
-import { C, FONTS } from "../components/theme";
-import { SpiceCard, SectionLabel, BarkProgress } from "../components/ui";
+import { getSensorData } from "../../services/api";
+import { SensorData } from "../../types/index";
+import { C, FONTS } from "../../components/theme";
+import { SpiceCard, SectionLabel, BarkProgress } from "../../components/ui";
 
 function InsightCard({
   icon, title, value, desc, color
@@ -110,9 +110,9 @@ export default function Insights() {
             />
             <InsightCard
               icon="🤖" title="LAST ML"
-              value={data.ml_result === "unknown" ? "—" :
+              value={data.ml_result === "pending" ? "—" :
                      data.ml_result === "dry" ? "DRY ✓" : "WET"}
-              desc={data.ml_result !== "unknown"
+              desc={data.ml_result !== "pending"
                 ? data.ml_confidence + "% confidence"
                 : "Awaiting photo"}
               color={data.ml_result === "dry" ? C.green : C.spiceLight}

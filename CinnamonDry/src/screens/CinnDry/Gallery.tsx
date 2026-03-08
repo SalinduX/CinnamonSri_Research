@@ -3,10 +3,10 @@ import {
   View, Text, StyleSheet, FlatList, Image,
   TouchableOpacity, RefreshControl, Dimensions, ActivityIndicator
 } from "react-native";
-import { getGallery, getImageUrl } from "../services/api";
-import { CapturedImage } from "../types/react-navigation";
-import { C, FONTS } from "../components/theme";
-import { SpiceCard } from "../components/ui";
+import { getGallery, getImageUrl } from "../../services/api";
+import { CapturedImage } from "../../types/react-navigation";
+import { C, FONTS } from "../../components/theme";
+import { SpiceCard } from "../../components/ui";
 
 const W          = Dimensions.get("window").width;
 const CARD_SIZE  = (W - 48) / 2;
