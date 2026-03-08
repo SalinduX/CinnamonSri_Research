@@ -1,4 +1,4 @@
-import { SensorData, LogEntry, CapturedImage } from "../types/react-navigation";
+import { SensorData, LogEntry, CapturedImage } from "../types";
 
 // ---- Change this to your Raspberry Pi IP ----
 export const API_BASE = "http://172.20.10.2:5000";
