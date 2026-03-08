@@ -1,21 +1,20 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from "react-native";
+import {
+  View, Text, StyleSheet, ScrollView,
+  RefreshControl, ActivityIndicator
+} from "react-native";
 import { getSensorData } from "../services/api";
 import { SensorData } from "../types/react-navigation";
-
-const C = {
-  bg:      "#020817", surface: "#0f172a", border: "#1e293b",
-  muted:   "#64748b", text:    "#94a3b8", white:  "#ffffff",
-  amber:   "#f59e0b", green:   "#22c55e", red:    "#ef4444", blue: "#38bdf8",
-};
+import { C, FONTS, SHADOWS } from "../components/theme";
+import { SpiceCard, SectionLabel, MetricTile } from "../components/ui";
 
 const THRESHOLDS = [
-  { label: "Heater ON below",  value: "40°C",    desc: "Heater activates when temp drops below this" },
-  { label: "Heater OFF above", value: "55°C",    desc: "Safety cutoff - heater shuts off"            },
-  { label: "Fan",              value: "Always",  desc: "Fan runs continuously at all times"           },
-  { label: "Base drying time", value: "360 min", desc: "Expected duration under ideal conditions"     },
-  { label: "Photo interval",   value: "15 min",  desc: "Camera captures every 15 minutes"            },
-  { label: "ML threshold",     value: "70%",     desc: "Min confidence to declare bark dry"           },
+  { icon: "🔥", label: "Heater turns ON",  value: "Below 40°C",  desc: "Heater activates when temp drops" },
+  { icon: "🔥", label: "Heater turns OFF", value: "Above 55°C",  desc: "Safety cutoff prevents overheating" },
+  { icon: "💨", label: "Fan",               value: "Always ON",   desc: "Runs continuously for airflow" },
+  { icon: "⏱️", label: "Base drying time", value: "360 minutes", desc: "Expected time under ideal conditions" },
+  { icon: "📷", label: "Photo interval",   value: "15 minutes",  desc: "Camera captures bark condition" },
+  { icon: "🤖", label: "ML threshold",     value: "70% conf.",   desc: "Min confidence to declare dry" },
 ];
 
 export default function Controls() {
@@ -32,91 +31,106 @@ export default function Controls() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 3000);
-    return () => clearInterval(interval);
+    const iv = setInterval(fetchData, 3000);
+    return () => clearInterval(iv);
   }, [fetchData]);
 
   return (
     <ScrollView
       style={styles.scroll}
-      refreshControl={<RefreshControl refreshing={refreshing}
-        onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={C.amber} />}
+      refreshControl={<RefreshControl refreshing={refreshing} tintColor={C.spice}
+        onRefresh={() => { setRefreshing(true); fetchData(); }} />}
     >
-      {/* Live status from real Pi */}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>LIVE READINGS FROM PI</Text>
+      {/* ── Live Readings ── */}
+      <SpiceCard>
+        <SectionLabel text="Live Readings" />
         {loading || !data ? (
-          <ActivityIndicator color={C.amber} />
+          <View style={styles.loadingBox}>
+            <ActivityIndicator color={C.spice} />
+            <Text style={styles.loadingText}>Fetching from Pi...</Text>
+          </View>
         ) : (
-          <View style={styles.liveGrid}>
-            {[
-              { label: "Temp",     value: data.temp + "°C",          color: C.red   },
-              { label: "Humidity", value: data.humidity + "%",        color: C.blue  },
-              { label: "Heater",   value: data.heater,                color: data.heater === "ON" ? C.amber : C.muted },
-              { label: "Fan",      value: data.fan,                   color: C.green },
-              { label: "Photos",   value: data.photo_count + " taken",color: C.text  },
-              { label: "Status",   value: data.status,                color: data.status === "COMPLETE" ? C.green : C.amber },
-            ].map((item, i) => (
-              <View key={i} style={styles.liveBox}>
-                <Text style={[styles.liveVal, { color: item.color }]}>{item.value}</Text>
-                <Text style={styles.liveLbl}>{item.label}</Text>
-              </View>
-            ))}
+          <View style={styles.tileGrid}>
+            <MetricTile label="TEMPERATURE" value={data.temp}     unit="°C" color={C.spiceLight} sub="DHT22 sensor" />
+            <MetricTile label="HUMIDITY"    value={data.humidity} unit="%"  color={C.honey}      sub="Relative humidity" />
+            <MetricTile
+              label="HEATER" value={data.heater} color={data.heater === "ON" ? C.spiceLight : C.muted}
+              sub={data.heater === "ON" ? "Heating bark" : "Standby"}
+            />
+            <MetricTile label="FAN" value={data.fan} color={C.green} sub="Always running" />
+            <MetricTile label="PHOTOS" value={data.photo_count} color={C.honey} sub="Total captured" />
+            <MetricTile
+              label="STATUS" value={data.status === "COMPLETE" ? "DONE" : "ACTIVE"}
+              color={data.status === "COMPLETE" ? C.green : C.spice} sub={data.status}
+            />
           </View>
         )}
-      </View>
+      </SpiceCard>
 
-      {/* Thresholds */}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>CONTROL THRESHOLDS</Text>
-        {THRESHOLDS.map((t, i) => (
-          <View key={i} style={styles.threshRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.threshLabel}>{t.label}</Text>
-              <Text style={styles.threshDesc}>{t.desc}</Text>
+      {/* ── Control Thresholds ── */}
+      <SpiceCard>
+        <SectionLabel text="Control Thresholds" />
+        <View style={styles.threshList}>
+          {THRESHOLDS.map((t, i) => (
+            <View key={i} style={[styles.threshRow,
+              i === THRESHOLDS.length - 1 && { borderBottomWidth: 0 }
+            ]}>
+              <Text style={styles.threshIcon}>{t.icon}</Text>
+              <View style={styles.threshInfo}>
+                <Text style={styles.threshLabel}>{t.label}</Text>
+                <Text style={styles.threshDesc}>{t.desc}</Text>
+              </View>
+              <View style={styles.threshValueBox}>
+                <Text style={styles.threshValue}>{t.value}</Text>
+              </View>
             </View>
-            <Text style={styles.threshValue}>{t.value}</Text>
-          </View>
-        ))}
-      </View>
+          ))}
+        </View>
+      </SpiceCard>
 
-      {/* Control Logic */}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>CONTROL LOGIC</Text>
-        <View style={styles.logicBox}>
-          <Text style={styles.logicTitle}>🔥  Heater Logic</Text>
-          <Text style={styles.logicLine}>ON  →  temp {"<"} 40°C</Text>
-          <Text style={styles.logicLine}>OFF →  temp {">"} 55°C</Text>
+      {/* ── Logic Summary ── */}
+      <SpiceCard>
+        <SectionLabel text="Control Logic" />
+        <View style={styles.logicList}>
+          {[
+            { color: C.spice,  icon: "🔥", title: "Heater",  lines: ["ON  when temp < 40°C", "OFF when temp > 55°C"] },
+            { color: C.honey,  icon: "💨", title: "Fan",      lines: ["Always ON while running", "OFF only on shutdown"] },
+            { color: C.green,  icon: "📷", title: "Camera",   lines: ["Captures every 15 min", "ML classifies each photo"] },
+            { color: C.blue,   icon: "🤖", title: "ML Model", lines: ["Labels: dry / not_dry", "> 70% confidence = dry"] },
+          ].map((item, i) => (
+            <View key={i} style={[styles.logicCard, { borderLeftColor: item.color }]}>
+              <Text style={styles.logicIcon}>{item.icon}</Text>
+              <View>
+                <Text style={[styles.logicTitle, { color: item.color }]}>{item.title}</Text>
+                {item.lines.map((l, j) => (
+                  <Text key={j} style={styles.logicLine}>{l}</Text>
+                ))}
+              </View>
+            </View>
+          ))}
         </View>
-        <View style={[styles.logicBox, { borderColor: C.blue }]}>
-          <Text style={styles.logicTitle}>💨  Fan Logic</Text>
-          <Text style={styles.logicLine}>Always ON while system is running</Text>
-          <Text style={styles.logicLine}>OFF only on system shutdown</Text>
-        </View>
-        <View style={[styles.logicBox, { borderColor: C.green }]}>
-          <Text style={styles.logicTitle}>📷  Camera Logic</Text>
-          <Text style={styles.logicLine}>Photo taken every 15 minutes</Text>
-          <Text style={styles.logicLine}>ML model classifies: dry / not_dry</Text>
-          <Text style={styles.logicLine}>Confident dry at {">"} 70% confidence</Text>
-        </View>
-      </View>
+      </SpiceCard>
+
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll:       { flex: 1, backgroundColor: C.bg, padding: 16 },
-  card:         { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 16, padding: 16, marginBottom: 16 },
-  sectionTitle: { color: C.muted, fontSize: 10, letterSpacing: 2, marginBottom: 14, fontFamily: "monospace" },
-  liveGrid:     { flexDirection: "row", flexWrap: "wrap" },
-  liveBox:      { width: "33%", alignItems: "center", paddingVertical: 10 },
-  liveVal:      { fontSize: 16, fontWeight: "700", fontFamily: "monospace" },
-  liveLbl:      { color: C.muted, fontSize: 9, letterSpacing: 1, marginTop: 4, fontFamily: "monospace" },
-  threshRow:    { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
-  threshLabel:  { color: C.text, fontSize: 13, fontFamily: "monospace" },
-  threshDesc:   { color: C.muted, fontSize: 10, marginTop: 2, fontFamily: "monospace" },
-  threshValue:  { color: C.amber, fontSize: 13, fontWeight: "700", fontFamily: "monospace" },
-  logicBox:     { borderWidth: 1, borderColor: C.amber, borderRadius: 10, padding: 14, marginBottom: 10 },
-  logicTitle:   { color: C.white, fontSize: 13, fontWeight: "700", marginBottom: 8, fontFamily: "monospace" },
-  logicLine:    { color: C.text, fontSize: 12, lineHeight: 22, fontFamily: "monospace" },
+  scroll:        { flex: 1, backgroundColor: C.bg, padding: 16 },
+  loadingBox:    { flexDirection: "row", gap: 10, alignItems: "center", padding: 16 },
+  loadingText:   { color: C.muted, fontFamily: FONTS.mono, fontSize: 12 },
+  tileGrid:      { flexDirection: "row", flexWrap: "wrap", gap: 10, padding: 16, paddingTop: 0 },
+  threshList:    { paddingHorizontal: 16, paddingBottom: 8 },
+  threshRow:     { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
+  threshIcon:    { fontSize: 20, width: 28, textAlign: "center" },
+  threshInfo:    { flex: 1 },
+  threshLabel:   { color: C.cream, fontSize: 13, fontFamily: FONTS.body },
+  threshDesc:    { color: C.muted, fontSize: 10, fontFamily: FONTS.mono, marginTop: 2 },
+  threshValueBox:{ backgroundColor: C.spiceDim, borderRadius: 6, paddingVertical: 4, paddingHorizontal: 8 },
+  threshValue:   { color: C.spiceLight, fontSize: 11, fontWeight: "700", fontFamily: FONTS.mono },
+  logicList:     { padding: 16, paddingTop: 0, gap: 10 },
+  logicCard:     { flexDirection: "row", gap: 14, backgroundColor: C.surfaceHigh, borderRadius: 10, borderLeftWidth: 3, padding: 14, alignItems: "flex-start" },
+  logicIcon:     { fontSize: 20, marginTop: 2 },
+  logicTitle:    { fontSize: 14, fontWeight: "700", fontFamily: FONTS.body, marginBottom: 4 },
+  logicLine:     { color: C.text, fontSize: 12, fontFamily: FONTS.mono, lineHeight: 20 },
 });

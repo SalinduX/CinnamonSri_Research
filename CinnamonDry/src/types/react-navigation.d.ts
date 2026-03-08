@@ -32,6 +32,8 @@ export interface LogEntry {
 
 // ---- Gallery image from /gallery ----
 export interface CapturedImage {
+  humidity: ReactNode;
+  temp: undefined;
   id:         string;
   filename:   string;
   timestamp:  string;
