@@ -4,7 +4,7 @@ import {
   TouchableOpacity, RefreshControl, Dimensions, ActivityIndicator
 } from "react-native";
 import { getGallery, getImageUrl } from "../../services/api";
-import { CapturedImage } from "../../types/react-navigation";
+import { CapturedImage } from "../../types/index";
 import { C, FONTS } from "../../components/theme";
 import { SpiceCard } from "../../components/ui";
 

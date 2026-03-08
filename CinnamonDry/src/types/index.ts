@@ -28,6 +28,11 @@ export interface SensorData {
   humidity: number;
   heater: string;
   ml_result: "dry" | "not_dry" | "pending";
+  fan?: string;
+  status?: string;
+  last_updated?: string;
+  remaining_str?: string;
+  drying_start?: string;
 }
 
 export interface LogEntry {

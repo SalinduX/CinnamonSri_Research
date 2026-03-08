@@ -4,7 +4,7 @@ import {
   RefreshControl, ActivityIndicator
 } from "react-native";
 import { getSensorData } from "../../services/api";
-import { SensorData } from "../../types/react-navigation";
+import { SensorData } from "../../types/index";
 import { C, FONTS, SHADOWS } from "../../components/theme";
 import { SpiceCard, SectionLabel, MetricTile } from "../../components/ui";
 
@@ -57,7 +57,7 @@ export default function Controls() {
               label="HEATER" value={data.heater} color={data.heater === "ON" ? C.spiceLight : C.muted}
               sub={data.heater === "ON" ? "Heating bark" : "Standby"}
             />
-            <MetricTile label="FAN" value={data.fan} color={C.green} sub="Always running" />
+            <MetricTile label="FAN" value={data.fan || "ON"} color={C.green} sub="Always running" />
             <MetricTile label="PHOTOS" value={data.photo_count} color={C.honey} sub="Total captured" />
             <MetricTile
               label="STATUS" value={data.status === "COMPLETE" ? "DONE" : "ACTIVE"}

@@ -29,24 +29,6 @@ export default function App() {
             border:       C.border,
             notification: C.spice,
           },
-          fonts: {
-            regular: {
-              fontFamily: "System",
-              fontWeight: "400",
-            },
-            medium: {
-              fontFamily: "System",
-              fontWeight: "500",
-            },
-            heavy: {
-              fontFamily: "System",
-              fontWeight: "700",
-            },
-            bold: {
-              fontFamily: "",
-              fontWeight: "bold"
-            }
-          },
         }}
       >
         <Stack.Navigator

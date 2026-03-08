@@ -4,7 +4,7 @@ import {
   ActivityIndicator, RefreshControl, Animated
 } from "react-native";
 import { getSensorData } from "../../services/api";
-import { SensorData } from "../../types/react-navigation";
+import { SensorData } from "../../types/index";
 import { C, FONTS, SHADOWS } from "../../components/theme";
 import {
   SpiceCard, SectionLabel, StatusPill,
@@ -48,7 +48,7 @@ function RingGauge({
 // ─── ML Result Banner ──────────────────────────────────────────────
 function MLBanner({ data }: { data: SensorData }) {
   const isDry     = data.ml_result === "dry";
-  const isPending = data.ml_result === "unknown";
+  const isPending = data.ml_result === "pending";
 
   return (
     <View style={[styles.mlBanner, {
@@ -221,7 +221,7 @@ export default function Dashboard() {
                 <Text style={styles.deviceIcon}>💨</Text>
                 <Text style={styles.deviceName}>Fan</Text>
               </View>
-              <StatusPill label={data.fan} isOn={data.fan === "ON"} />
+              <StatusPill label={data.fan || "OFF"} isOn={data.fan === "ON"} />
             </View>
             <View style={styles.deviceRow}>
               <View style={styles.deviceInfo}>
