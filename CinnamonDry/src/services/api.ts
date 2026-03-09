@@ -1,31 +1,50 @@
-import axios from 'axios';
-import Constants from 'expo-constants';
+import { SensorData, LogEntry, CapturedImage } from "../types/index";
 
-const API_BASE = Constants.expoConfig?.extra?.apiBase || 'http://YOUR_BACKEND_IP:3000/api'; // ← CHANGE THIS
+export const API_BASE = "http://172.20.10.2:5000"; // ← Change to your Pi IP
+const TIMEOUT = 5000;
 
-export const api = axios.create({ baseURL: API_BASE, timeout: 10000 });
-
-export interface DeviceStatus {
-  temperature: number;
-  humidity: number;
-  fanOn: boolean;
-  heaterOn: boolean;
-  mlDecision: 'yes' | 'no';
-  lastImageUrl: string;
-  timestamp: string;
+async function fetchWithTimeout(url: string): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-export interface ImageItem {
-  id: string;
-  url: string;
-  timestamp: string;
-  decision: 'yes' | 'no';
+export async function getSensorData(): Promise<{ data: SensorData | null; connected: boolean }> {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE}/status`);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return { data: await res.json() as SensorData, connected: true };
+  } catch {
+    return { data: null, connected: false };
+  }
 }
 
-export const apiService = {
-  getStatus: () => api.get<DeviceStatus>('/device/status'),
-  getImages: (limit = 20) => api.get<ImageItem[]>('/images', { params: { limit } }),
-  getHistory: (hours = 24) => api.get('/history', { params: { hours } }),
-  controlDevice: (device: 'fan' | 'heater', action: 'on' | 'off') =>
-    api.post('/control', { device, action }),
-};
+export async function getLogs(): Promise<{ logs: LogEntry[]; connected: boolean }> {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE}/logs`);
+    if (!res.ok) throw new Error();
+    const json = await res.json();
+    return { logs: json.logs as LogEntry[], connected: true };
+  } catch {
+    return { logs: [], connected: false };
+  }
+}
+
+export async function getGallery(): Promise<{ images: CapturedImage[]; connected: boolean }> {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE}/gallery`);
+    if (!res.ok) throw new Error();
+    const json = await res.json();
+    return { images: json.images as CapturedImage[], connected: true };
+  } catch {
+    return { images: [], connected: false };
+  }
+}
+
+export function getImageUrl(filename: string): string {
+  return `${API_BASE}/image/${filename}`;
+}
