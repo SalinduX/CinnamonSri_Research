@@ -205,7 +205,7 @@ export default function HomeScreen() {
           </View>
 
           <Text style={styles.brandEmoji}>🌿</Text>
-          <Text style={styles.brandTitle}>CinnamonDry</Text>
+          <Text style={styles.brandTitle}>CinnamonSri</Text>
           <Text style={styles.brandTagline}>Smart Cinnamon Management Platform</Text>
 
           {/* Decorative spice dots */}

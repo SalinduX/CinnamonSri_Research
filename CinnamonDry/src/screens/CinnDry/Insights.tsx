@@ -40,6 +40,139 @@ function Spiceometer({ value, label }: { value: number; label: string }) {
   );
 }
 
+// ─── Smart Recommendation Card ────────────────────────────────────
+function RecommendationRow({
+  icon, title, body, color, bg, border,
+}: {
+  icon: string; title: string; body: string;
+  color: string; bg: string; border: string;
+}) {
+  return (
+    <View style={[recStyles.row, { backgroundColor: bg, borderColor: border }]}>
+      <View style={[recStyles.iconBox, { backgroundColor: border + "55" }]}>
+        <Text style={recStyles.icon}>{icon}</Text>
+      </View>
+      <View style={recStyles.textBox}>
+        <Text style={[recStyles.title, { color }]}>{title}</Text>
+        <Text style={recStyles.body}>{body}</Text>
+      </View>
+    </View>
+  );
+}
+
+function SmartRecommendations({ data }: { data: SensorData }) {
+  // Build recommendations list based on live sensor state
+  const recs: {
+    icon: string; title: string; body: string;
+    color: string; bg: string; border: string;
+  }[] = [];
+
+  // ── ML Result: Bark is DRY ──────────────────────────────────────
+  if (data.ml_result === "dry") {
+    recs.push({
+      icon:   "✅",
+      title:  "Bark is Ready — Remove Now",
+      body:   "ML model confirmed dryness at " + data.ml_confidence + "% confidence. Remove bark from the drying box immediately and store in a cool, dry container to prevent re-absorption of moisture.",
+      color:  C.green,
+      bg:     C.greenDim,
+      border: C.green,
+    });
+  }
+
+  // ── ML Result: Still wet after long time ───────────────────────
+  if (data.ml_result === "not_dry" && data.elapsed > 240) {
+    recs.push({
+      icon:   "⏳",
+      title:  "Still Drying After " + data.elapsed + " Minutes",
+      body:   "Bark has been drying for over 4 hours but ML model still detects moisture. Check that the heater relay is working and bark is spread evenly without overlapping pieces.",
+      color:  C.spiceLight,
+      bg:     C.spiceDim,
+      border: C.spice,
+    });
+  }
+
+  // ── Temperature too low ─────────────────────────────────────────
+  if (data.temp < 40) {
+    recs.push({
+      icon:   "🌡️",
+      title:  "Temperature Too Low — " + data.temp + "°C",
+      body:   "Optimal drying requires 40–55°C. Current temperature is below threshold. Heater is activating — estimated time will reduce as temperature rises. Ensure the drying box is sealed to retain heat.",
+      color:  C.honey,
+      bg:     C.honeyDim,
+      border: C.honey,
+    });
+  }
+
+  // ── Temperature too high ────────────────────────────────────────
+  if (data.temp > 55) {
+    recs.push({
+      icon:   "🔥",
+      title:  "Temperature Too High — " + data.temp + "°C",
+      body:   "Temperatures above 55°C can damage bark quality and cause uneven drying or burning. Heater has been switched OFF automatically. Allow temperature to drop naturally.",
+      color:  C.red,
+      bg:     C.redDim,
+      border: C.red,
+    });
+  }
+
+  // ── High humidity ───────────────────────────────────────────────
+  if (data.humidity > 60) {
+    recs.push({
+      icon:   "💧",
+      title:  "High Humidity — " + data.humidity + "%",
+      body:   "Humidity above 60% significantly slows drying. Consider increasing ventilation around the drying box or pre-drying bark in open air for 30 minutes before placing in the box.",
+      color:  C.blue,
+      bg:     C.blue,
+      border: C.blue,
+    });
+  }
+
+  // ── Good conditions ─────────────────────────────────────────────
+  if (data.temp >= 40 && data.temp <= 55 && data.humidity < 55 && data.ml_result !== "dry") {
+    recs.push({
+      icon:   "✓",
+      title:  "Optimal Conditions — Keep Running",
+      body:   "Temperature and humidity are both in the ideal range. Drying is progressing at " + ((data.temp / 45) * (50 / Math.max(data.humidity, 1))).toFixed(2) + "× base rate. Estimated completion: " + data.remaining_str + ".",
+      color:  C.green,
+      bg:     C.greenDim,
+      border: C.green,
+    });
+  }
+
+  // ── Alternative to sunlight note ───────────────────────────────
+  if (data.ml_result !== "dry") {
+    recs.push({
+      icon:   "☀️",
+      title:  "Why Box Drying Beats Sunlight",
+      body:   "Traditional sunlight drying takes 5–7 days and depends on weather. This controlled drying box maintains a constant 40–55°C with forced airflow, reducing drying time to under 8 hours with consistent quality regardless of weather conditions.",
+      color:  C.honey,
+      bg:     C.honeyDim,
+      border: C.honey,
+    });
+  }
+
+  return (
+    <SpiceCard>
+      <SectionLabel text="Smart Recommendations" />
+      <View style={recStyles.container}>
+        {recs.map((r, i) => (
+          <RecommendationRow key={i} {...r} />
+        ))}
+      </View>
+    </SpiceCard>
+  );
+}
+
+const recStyles = StyleSheet.create({
+  container: { paddingHorizontal: 16, paddingBottom: 8, gap: 10 },
+  row:       { flexDirection: "row", gap: 12, borderWidth: 1, borderRadius: 12, padding: 12, alignItems: "flex-start" },
+  iconBox:   { width: 38, height: 38, borderRadius: 10, justifyContent: "center", alignItems: "center", flexShrink: 0 },
+  icon:      { fontSize: 18 },
+  textBox:   { flex: 1 },
+  title:     { fontSize: 12, fontWeight: "700", fontFamily: FONTS.mono, marginBottom: 4 },
+  body:      { fontSize: 11, color: C.text, fontFamily: FONTS.body, lineHeight: 17 },
+});
+
 export default function Insights() {
   const [data, setData]             = useState<SensorData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -145,6 +278,9 @@ export default function Insights() {
           </View>
         </SpiceCard>
       )}
+
+      {/* ── Smart Recommendations ── */}
+      {data && <SmartRecommendations data={data} />}
 
       {/* ── Cinnamon Drying Tips ── */}
       <SpiceCard>
